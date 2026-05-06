@@ -1,7 +1,5 @@
 <div align="center">
 
-
-
 # GitAnalyze
 
 **GitHub Candidate Intelligence Engine**
