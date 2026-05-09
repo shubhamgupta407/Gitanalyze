@@ -1,0 +1,37 @@
+.ai-verdict {
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.1));
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  margin-top: 2rem;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.05);
+}
+
+.ai-verdict-header {
+  background: rgba(139, 92, 246, 0.15);
+  padding: 1rem 1.5rem;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.ai-icon {
+  color: var(--accent-indigo);
+}
+
+.ai-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.ai-verdict-body {
+  padding: 1.5rem;
+}
+
+.ai-text {
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-size: 1.05rem;
+}

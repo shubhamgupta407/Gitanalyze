@@ -1,0 +1,463 @@
+/* ── Enterprise Recruiter Dashboard v4 ── */
+.report-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  color: #111827;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  padding: 112px 24px 80px;
+}
+
+/* Hide old orbs */
+.bg-orbs {
+  display: none;
+}
+
+/* ── Top Actions ── */
+.report-actions {
+  max-width: 1100px;
+  margin: 0 auto 32px;
+}
+
+.report-actions .btn {
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.report-actions .btn:hover {
+  background: #f9fafb;
+  transform: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.report-actions .btn-primary {
+  background: #4f46e5;
+  color: #ffffff;
+  border: 1px solid #4f46e5;
+}
+
+.report-actions .btn-primary:hover {
+  background: #4338ca;
+}
+
+/* ── Centered Profile Header ── */
+.report-header-v4 {
+  max-width: 1100px;
+  margin: 0 auto 40px;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 40px 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.rp-avatar-v4 {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 16px;
+  border: 2px solid #e5e7eb;
+  background: #f3f4f6;
+  display: block;
+}
+
+.report-header-v4 h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.verified-badge svg {
+  color: #059669;
+}
+
+/* ── Dashboard Grid ── */
+.report-workbench-v4 {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.rp-sections-grid-v4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .rp-sections-grid-v4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rp-section-card-v4 {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.rp-section-highlight-v4 {
+  grid-column: 1 / -1;
+}
+
+.rp-section-card-header-v4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.rp-section-card-title-v4 {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Score Visuals ── */
+.rp-circular-score {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+}
+
+.rp-circular-score svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.rp-circular-score-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp-circular-score-text .score-val {
+  font-size: 36px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+}
+
+.rp-circular-score-text .score-label {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 6px;
+}
+
+/* ── Progress Bars ── */
+.rp-mini-bar-row-v4 {
+  margin-bottom: 16px;
+}
+
+.rp-mini-bar-row-v4:last-child {
+  margin-bottom: 0;
+}
+
+.rp-mini-bar-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.rp-mini-bar-label {
+  font-size: 13px;
+  color: #374151;
+}
+
+.rp-mini-bar-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.rp-thin-track-v4 {
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.rp-thin-fill-v4 {
+  height: 100%;
+  background: #4f46e5;
+  border-radius: 9999px;
+}
+
+/* ── Chips & Badges ── */
+.rp-tags-grid-v4 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rp-pill-badge-v4 {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #374151;
+}
+
+.rp-pill-badge-role {
+  background: #ede9fe;
+  border: 1px solid #c4b5fd;
+  color: #4f46e5;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+/* ── Paragraph Text ── */
+.rp-paragraph-text {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #374151;
+}
+
+.rp-bullet-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.rp-bullet-item:last-child {
+  margin-bottom: 0;
+}
+
+.rp-bullet-dot {
+  color: #f59e0b;
+  font-size: 14px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* ── Projects ── */
+.rp-projects-grid-v4 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rp-project-row-v4 {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.rp-project-number {
+  background: #4f46e5;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.rp-project-content {
+  flex: 1;
+}
+
+.rp-project-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.rp-project-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  word-break: break-word;
+  flex: 1;
+}
+
+.rp-project-lang {
+  font-size: 11px;
+  background: #f3f4f6;
+  color: #374151;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #e5e7eb;
+}
+
+.rp-project-desc {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+/* ── Recommendation ── */
+.rp-recommendation-v4 {
+  display: flex;
+  flex-direction: column;
+}
+
+.rp-rec-row {
+  display: flex;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.rp-rec-row:first-child {
+  padding-top: 0;
+}
+
+.rp-rec-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  flex-direction: column;
+}
+
+.rp-rec-label {
+  font-size: 13px;
+  color: #9ca3af;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.rp-rec-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.rp-rec-value.success { color: #059669; }
+.rp-rec-value.warning { color: #d97706; }
+.rp-rec-value.danger { color: #dc2626; }
+
+.rp-rec-reason {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+/* ── Verdict ── */
+.rp-verdict-card-v4 {
+  background: #fafafa;
+  border-left: 3px solid #4f46e5;
+  padding: 24px;
+  border-radius: 0 12px 12px 0;
+  font-style: italic;
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.8;
+  grid-column: 1 / -1;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-top: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Misc text utilities */
+.rp-empty-state {
+  font-size: 13px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Terminal Loading Animation */
+.terminal-loading-box {
+  background: #0d1117;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  width: 100%;
+  max-width: 600px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  text-align: left;
+}
+
+.terminal-header {
+  background: #161b22;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #30363d;
+  gap: 8px;
+}
+
+.terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.terminal-dot.red { background: #ff5f56; }
+.terminal-dot.yellow { background: #ffbd2e; }
+.terminal-dot.green { background: #27c93f; }
+
+.terminal-title {
+  margin-left: 8px;
+  color: #8b949e;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.terminal-body {
+  padding: 20px;
+  color: #e6edf3;
+  min-height: 250px;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.terminal-line {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.terminal-line.dim {
+  color: #8b949e;
+}
+.prompt {
+  color: #27c93f;
+  margin-right: 8px;
+}
+.terminal-cursor {
+  display: inline-block;
+  margin-left: 4px;
+  color: #e6edf3;
+}

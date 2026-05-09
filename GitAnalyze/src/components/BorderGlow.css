@@ -1,0 +1,67 @@
+/* Use @property for smooth conic-gradient animation */
+@property --glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ═══ Rotating Border Glow ═══ */
+.border-glow-wrap {
+  position: relative;
+  border-radius: var(--glow-radius, 20px);
+  padding: 2px;
+  isolation: isolate;
+}
+
+/* The rotating gradient border */
+.border-glow-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--glow-angle, 0deg),
+    var(--glow-c1, #6366f1) 0%,
+    var(--glow-c2, #818cf8) 15%,
+    transparent 30%,
+    transparent 50%,
+    var(--glow-c3, #38bdf8) 65%,
+    var(--glow-c1, #6366f1) 80%,
+    transparent 95%
+  );
+  animation: glow-spin 7s linear infinite;
+  z-index: -2;
+}
+
+/* Outer soft glow halo */
+.border-glow-wrap::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: calc(var(--glow-radius, 20px) + 8px);
+  background: conic-gradient(
+    from var(--glow-angle, 0deg),
+    var(--glow-c1, #6366f1) 0%,
+    transparent 20%,
+    transparent 50%,
+    var(--glow-c3, #38bdf8) 70%,
+    transparent 90%
+  );
+  filter: blur(16px);
+  opacity: 0.45;
+  animation: glow-spin 7s linear infinite;
+  z-index: -3;
+}
+
+/* Inner background masks the gradient — only the 2px border peeks through */
+.border-glow-inner-bg {
+  position: relative;
+  border-radius: calc(var(--glow-radius, 20px) - 2px);
+  background: var(--glow-bg, #0a0e1a);
+  overflow: hidden;
+  z-index: 1;
+}
+
+@keyframes glow-spin {
+  to { --glow-angle: 360deg; }
+}
