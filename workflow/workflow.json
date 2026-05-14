@@ -1,0 +1,941 @@
+{
+  "name": "Github Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -752,
+        -640
+      ],
+      "id": "2d673b4b-1b97-4a2a-b0e2-f170e8474421",
+      "name": "Telegram Trigger",
+      "webhookId": "39171bdd-cf59-49f4-a271-b6daa46a41c8",
+      "credentials": {
+        "telegramApi": {
+          "id": "yXk25cKxlZo8AWYG",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let payload = $json.body ? $json.body : $json;\n\nlet mode = \"single\";\nlet users = [];\nlet firstUser = \"\";\n\n/* ONLY CURRENT INPUT CHECK */\nconst isTelegram =\n  payload.message &&\n  typeof payload.message.text === \"string\";\n\nconst source = isTelegram ? \"telegram\" : \"webhook\";\n\n/* Telegram input */\nif (isTelegram) {\n  const text = payload.message.text.trim();\n\n  if (text.startsWith(\"/compare\")) {\n    mode = \"compare\";\n    users = text\n      .replace(\"/compare\", \"\")\n      .split(\",\")\n      .map(x => x.trim())\n      .filter(Boolean);\n\n  } else {\n    mode = \"single\";\n    users = [\n      text.replace(\"/analyze\", \"\").trim()\n    ];\n  }\n\n} else {\n  /* Website webhook input */\n  mode = payload.mode || \"single\";\n  users = payload.users || [payload.username];\n}\n\nfirstUser = users[0] || \"\";\n\nreturn [{\n  json: {\n    users,\n    count: users.length,\n    mode,\n    firstUser,\n    username: firstUser,\n    source\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        -752
+      ],
+      "id": "5edc51ef-7fbb-4617-9523-0c4b7a6a1d37",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/users/{{ $json.username || $json.firstUser }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer Your_GitHub_Key"
+            },
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        912,
+        -768
+      ],
+      "id": "64ebb28c-42d1-466e-a82b-2d9b132615ef",
+      "name": "HTTP Request",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://api.github.com/users/' + $json.login + '/repos?per_page=100' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer Your_GitHub_Key"
+            },
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2976,
+        -752
+      ],
+      "id": "ef628df4-170f-49fb-b6d4-baa73b2db58c",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$item(0).$node[\"Telegram Trigger\"].json[\"message\"][\"chat\"][\"id\"]}}",
+        "text": "={{ $('Format Message').first().json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2480,
+        288
+      ],
+      "id": "a9adc6e1-5371-4acf-8635-e3065cb891be",
+      "name": "Send a text message",
+      "webhookId": "13b17dba-6724-40b8-b2cb-66645e571cc1",
+      "credentials": {
+        "telegramApi": {
+          "id": "yXk25cKxlZo8AWYG",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const repos = $input.all().map(item => item.json);\n\nreturn [{\n  json: {\n    repoSummary: repos.map(repo =>\n      `${repo.name} | Stars: ${repo.stargazers_count} | Language: ${repo.language} | Description: ${repo.description || 'No description'} | Topics: ${(repo.topics || []).join(', ')} | Forks: ${repo.forks_count} | Updated: ${repo.updated_at}`\n    ).join('\\n')\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2992,
+        -208
+      ],
+      "id": "397cf7a3-974e-4cc5-bd61-4e338f679673",
+      "name": "Merge Repos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allProfiles = $('HTTP Request').all();\nconst allRepos = $('HTTP Request1').all();\n\nconst results = allProfiles.map(profileItem => {\n  const profile = profileItem.json;\n  const repos = allRepos\n    .filter(r => r.json.owner && r.json.owner.login === profile.login)\n    .map(r => r.json);\n\n  // PROFILE STRENGTH /20\n  let profileStrength = 0;\n  if (profile.bio && profile.bio.length > 20) profileStrength += 5;\n  if (profile.avatar_url) profileStrength += 3;\n  if (profile.blog || profile.twitter_username) profileStrength += 4;\n  if (profile.public_repos >= 10) profileStrength += 4;\n  if (profile.followers >= 10) profileStrength += 4;\n\n  // REPO QUALITY /30\n  let repoQuality = 0;\n  const withMeaningfulDesc = repos.filter(r =>\n    r.description && r.description.length > 40\n  ).length;\n  repoQuality += Math.min(withMeaningfulDesc * 1.5, 10);\n  const withTopics = repos.filter(r =>\n    r.topics && r.topics.length >= 3\n  ).length;\n  repoQuality += Math.min(withTopics * 2, 10);\n  const withStars = repos.filter(r => r.stargazers_count > 0).length;\n  repoQuality += Math.min(withStars * 2, 10);\n\n  // TECH DEPTH /20\n  let techDepth = 0;\n  const languages = [...new Set(repos.map(r => r.language).filter(Boolean))];\n  techDepth += Math.min(languages.length * 2, 10);\n  const allTopics = repos.flatMap(r => r.topics || []);\n  const uniqueTopics = [...new Set(allTopics)];\n  techDepth += Math.min(uniqueTopics.length * 0.5, 10);\n\n  // ACTIVITY /20\n  let activity = 0;\n  const recentRepos = repos.filter(r => {\n    const updated = new Date(r.updated_at);\n    const now = new Date();\n    const diffDays = (now - updated) / (1000 * 60 * 60 * 24);\n    return diffDays <= 90;\n  }).length;\n  activity += Math.min(recentRepos * 3, 15);\n  if (profile.public_repos >= 15) activity += 5;\n\n  // SOCIAL PROOF /10\n  let socialProof = 0;\n  const totalStars = repos.reduce((sum, r) => sum + r.stargazers_count, 0);\n  const totalForks = repos.reduce((sum, r) => sum + r.forks_count, 0);\n  socialProof += Math.min(totalStars * 0.5, 5);\n  socialProof += Math.min(profile.followers * 0.3, 3);\n  socialProof += Math.min(totalForks * 0.5, 2);\n\n  const total = profileStrength + repoQuality + techDepth + activity + socialProof;\n  const finalScore = (total / 10).toFixed(1);\n\n  // PINNED REPOS from Merge node\n  let topRepos = [];\n  try {\n    const allInputs = $input.all();\n    const pinnedItem = allInputs.find(i => i.json.data);\n    const pinnedData = pinnedItem.json;\n    topRepos = pinnedData.data.user.pinnedItems.nodes.map(repo => ({\n      name: repo.name,\n      description: repo.description || 'No description',\n      language: repo.primaryLanguage?.name || 'Unknown',\n      stars: repo.stargazerCount,\n      forks: 0,\n      topics: repo.repositoryTopics.nodes.map(t => t.topic.name)\n    }));\n  } catch(e) {\n    topRepos = repos\n      .sort((a, b) => {\n        const scoreA = (a.stargazers_count * 2) + (a.description ? 3 : 0) + ((a.topics?.length || 0) * 2);\n        const scoreB = (b.stargazers_count * 2) + (b.description ? 3 : 0) + ((b.topics?.length || 0) * 2);\n        return scoreB - scoreA;\n      })\n      .slice(0, 5)\n      .map(r => ({\n        name: r.name,\n        description: r.description || 'No description',\n        language: r.language || 'Unknown',\n        stars: r.stargazers_count,\n        forks: r.forks_count,\n        topics: r.topics || []\n      }));\n  }\n\n  return {\n    json: {\n      username: profile.login,\n      name: profile.name || 'Not provided',\n      bio: profile.bio || 'No bio',\n      avatar_url: profile.avatar_url,\n      followers: profile.followers,\n      public_repos: profile.public_repos,\n      languages_detected: languages,\n      top_repos: topRepos,\n      finalScore,\n      profileStrength,\n      repoQuality,\n      techDepth,\n      activity,\n      socialProof,\n      total\n    }\n  };\n});\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        352
+      ],
+      "id": "de43f146-5ce4-482e-9311-3bba6fda3dda",
+      "name": "Scoring Metrics"
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $('AI Agent').first().json.choices[0].message.content;\n\nconst clean = msg\n  .replace(/\\\\n/g, '\\n')    // \\\\n → actual newline\n  .replace(/\\\\\"/g, '\"')     // \\\" → \"\n  .replace(/\\\\\\\\/g, '\\\\')   // \\\\ → \\\n  .trim();\n\nreturn [\n  {\n    json: {\n      text: clean\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        352
+      ],
+      "id": "bc450d7b-b4cf-4317-a71e-ec3ff4718bf4",
+      "name": "Format Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawUsers = $json.users || [];\n\nconst cleanUsers = rawUsers.map(u =>\n  u.replace('/analyze', '')\n   .replace('/compare', '')\n   .trim()\n).filter(Boolean);\n\nreturn [\n{\njson: {\nusers: cleanUsers,\ncount: cleanUsers.length\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -1072
+      ],
+      "id": "f37fe79c-842d-4fbe-b8eb-e332bb6236a9",
+      "name": "Prepare Compare Users"
+    },
+    {
+      "parameters": {
+        "jsCode": "const users = $json.users || [];\n\nreturn users.map(username => ({\n  json: {\n    username: username.trim()\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        -1072
+      ],
+      "id": "c86b4eb9-0d03-4b05-984f-c94001bf4560",
+      "name": "Split Compare Users"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst isCompare = allItems.length > 1;\nlet prompt;\n\nif (isCompare) {\n  const candidatesData = allItems.map(i => i.json);\n  prompt = \"You are a senior technical recruiter and software engineering expert with 15+ years of hiring experience at top-tier tech companies. You have been given GitHub profile data of multiple candidates with pre-computed scoring metrics. Your job is to rank them and provide actionable hiring intelligence. SCORING SYSTEM: Profile Strength /20 (bio, avatar, website, social presence), Repo Quality /30 (project complexity, documentation, real-world utility), Tech Depth /20 (language diversity, framework usage, architecture patterns), Activity /20 (commit frequency, contribution consistency, recent activity), Social Proof /10 (stars, forks, followers, community recognition), Total /100 converted to /10. CRITICAL EVALUATION RULES: DO NOT rank candidates higher based on repo names containing buzzwords like 'AI', 'ML', 'prediction', 'classification', 'blockchain', 'GPT' alone. INSTEAD evaluate: Does the description explain a real problem being solved? Are there actual frameworks in topics suggesting real implementation? Pinned repos are candidate's self-highlighted best work — prioritize them. A repo named 'Disease-Outbreak-Prediction' with no topics and vague description is NOT impressive. A repo named 'ksolves-resolveai' with description explaining semantic routing, LLM fallback, audit logs and 10+ relevant topics IS impressive. Be fair, not harsh — reward genuine effort and real problem-solving, penalize buzzword-stuffing not beginners. CANDIDATES DATA: \" + JSON.stringify(candidatesData) + \" Analyze each candidate deeply and return in STRICT format: 🏆 GITHUB CANDIDATE COMPARISON REPORT. 🥇 RANK 1: [username] - [score]/10. Strengths: [2-3 specific technical strengths based on actual project data]. Why #1: [specific reason with data points from their pinned repos and real projects]. 🥈 RANK 2: [username] - [score]/10. Strengths: [2-3 specific technical strengths]. Why below Rank 1: [specific gap or weakness compared to rank 1 based on real project depth]. 🥉 RANK 3: [username] - [score]/10 (if exists). Strengths: [2-3 specific technical strengths]. Why below Rank 2: [specific gap]. 📊 METRIC-BY-METRIC BREAKDOWN: Profile Strength: [rank candidates]. Repo Quality: [rank candidates]. Tech Depth: [rank candidates]. Activity: [rank candidates]. Social Proof: [rank candidates]. 📌 ROLE-BASED RECOMMENDATION: Best For Startup: [username] - [one line reason based on actual projects]. Best For Corporate: [username] - [one line reason]. Best For Internship: [username] - [one line reason]. Best For AI/ML Teams: [username] - [one line reason]. Best For Frontend Role: [username] - [one line reason]. 💼 FINAL HIRING VERDICT: [2-3 lines on who to hire first, why, and what to watch out for based on real project analysis].\";\n} else {\n  const data = allItems[0].json;\n  prompt = \"You are a senior technical recruiter and software engineering expert with 15+ years of hiring experience at top-tier tech companies like Google, Meta, and Microsoft. You have been given a GitHub profile with pre-computed scoring metrics. Your job is to produce a professional, data-driven hiring assessment. SCORING SYSTEM: Profile Strength /20 (bio, avatar, website, social presence), Repo Quality /30 (project complexity, documentation, real-world utility), Tech Depth /20 (language diversity, framework usage, architecture patterns), Activity /20 (commit frequency, contribution consistency, recent activity), Social Proof /10 (stars, forks, followers, community recognition), Total /100 converted to /10. CRITICAL EVALUATION RULES: DO NOT praise or highlight repos based on names containing buzzwords like 'AI', 'ML', 'prediction', 'classification', 'blockchain', 'GPT', 'neural network' alone — these mean nothing without real implementation evidence. INSTEAD evaluate: Does the description explain a real problem being solved? Are there actual frameworks in topics that suggest real implementation? Does the project name and description align or is it just buzzwords? A repo named 'Disease-Outbreak-Prediction' with no topics and vague description is NOT a strong project. A repo named 'ksolves-resolveai' with description explaining semantic routing, LLM fallback, audit logs, human escalation and 10+ relevant topics IS a strong project — because it describes a real system solving a real enterprise problem. Pinned repos are the candidate's self-highlighted best work — always prioritize them in your strongest projects section. Be fair, not harsh. Reward genuine effort, learning trajectory, and real problem-solving. Penalize buzzword-stuffing and fake depth, not beginners. A 10/10 is reserved for production-grade projects with real users. 7-8/10 means genuinely strong developer. 5-6/10 is average with effort but lacks depth. CANDIDATE DATA: \" + JSON.stringify(data) + \" Produce a professional hiring report in STRICT format: 🔥 GITSCAN PRO REPORT: @[username]. ⭐ OVERALL SCORE: [finalScore]/10. 📊 SCORE BREAKDOWN: Profile Strength: [profileStrength]/20. Repo Quality: [repoQuality]/30. Tech Depth: [techDepth]/20. Activity: [activity]/20. Social Proof: [socialProof]/10. 🛠 TOP SKILLS DETECTED: [List 4-6 specific technologies detected from actual repo topics and languages — not assumed from names]. 🚀 WHAT STANDS OUT: [2-3 sentences on what makes this candidate genuinely interesting — mention actual pinned project names and what real problem they solve]. 📌 STRONGEST PROJECTS: 1. [pinned repo name] - [what real problem it solves and what engineering complexity it demonstrates]. 2. [repo name] - [one line on real implementation]. 3. [repo name] - [one line]. ⚠️ AREAS TO IMPROVE: 1. [specific actionable improvement based on actual gaps in their profile]. 2. [specific actionable improvement]. 🎯 BEST FIT ROLES: [List 2-3 specific roles this person is genuinely best suited for based on their actual projects]. 💼 HIRING RECOMMENDATION: Level: [Intern/Junior/Mid-Level/Senior]. Decision: [Hire/Strong Hire/Hold/Pass]. Reason: [2-3 sentences with specific data-backed reasoning from their actual pinned projects and scores]. 📝 VERDICT: [One powerful closing sentence summarizing candidate's real potential].\";\n}\n\nconst result = {\n  model: \"llama-3.3-70b-versatile\",\n  max_tokens: 1024,\n  messages: [\n    {\n      role: \"user\",\n      content: prompt\n    }\n  ]\n};\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        352
+      ],
+      "id": "dd770ae1-6c1a-41da-b88e-3a0a3bc26d8f",
+      "name": "Build Prompt"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "061573a8-e4c7-40aa-b7aa-18fee4bbbafa",
+              "leftValue": "={{$json.error.status}}",
+              "rightValue": 404,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1136,
+        -768
+      ],
+      "id": "c755dbc1-701b-418a-907c-759bc24da9f8",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$item(0).$node[\"Telegram Trigger\"].json[\"message\"][\"chat\"][\"id\"]}}",
+        "text": "❌ GitHub username not found.  Please check username spelling and try again.  Examples: /analyze shubhamgupta407 /compare shubhamgupta407,Akshat-cyber-cloud",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2384,
+        -1184
+      ],
+      "id": "32177ef5-2619-4914-8e76-41f331011cd6",
+      "name": "Send a text message1",
+      "webhookId": "1388d2f9-d1b3-440c-b12b-2473edc68765",
+      "credentials": {
+        "telegramApi": {
+          "id": "yXk25cKxlZo8AWYG",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "14RVNa1UOYHjMU2p71UvxSkuhGYFyzb0oXArElYl3Llo",
+          "mode": "list",
+          "cachedResultName": "GitScan Recruiter Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14RVNa1UOYHjMU2p71UvxSkuhGYFyzb0oXArElYl3Llo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14RVNa1UOYHjMU2p71UvxSkuhGYFyzb0oXArElYl3Llo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TimeStamp": "={{ new Date().toLocaleString(\"en-IN\") }}",
+            "Command": "={{ $('Code in JavaScript').item.json.command }}",
+            "Input": "={{ $('Code in JavaScript').item.json.users.join(', ') }}",
+            "Winner": "={{ $json.text.match(/RANK 1:\\s*([^\\s-]+)/)?.[1] }}",
+            "Score": "={{ $json.text.match(/RANK 1:.*?-\\s*([\\d.]+\\/10)/s)?.[1] }}",
+            "Recruiter": "={{ \"Recommended\" }}",
+            "Output": "={{ $('Format Message').item.json.text }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "TimeStamp",
+              "displayName": "TimeStamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Command",
+              "displayName": "Command",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Input",
+              "displayName": "Input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Winner",
+              "displayName": "Winner",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recruiter",
+              "displayName": "Recruiter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Output",
+              "displayName": "Output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1136,
+        352
+      ],
+      "id": "59f6172b-60d5-40c7-abcc-1779cf1da52c",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "28xk0WY3gRwPH95h",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gitanalyze",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -752,
+        -896
+      ],
+      "id": "c172ac85-f3ae-40f6-afcd-7cfdfae5fc89",
+      "name": "Webhook",
+      "webhookId": "a3e12565-5fa5-4fed-97d8-6cfe4f357929"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=={{ $('Format Message').first().json.text }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2480,
+        672
+      ],
+      "id": "52776d9c-f34c-4239-ae55-280a5b2942b5",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "94f4ae7d-11f0-4c4c-ae64-c0225d75f89c",
+              "leftValue": "={{ $node[\"Code in JavaScript\"].json.source }}",
+              "rightValue": "telegram",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1792,
+        480
+      ],
+      "id": "fe98c0e3-0087-423e-ba43-ae41fdf83e81",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/graphql",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"{ user(login: \\\"{{ $json.login }}\\\") { pinnedItems(first: 6, types: REPOSITORY) { nodes { ... on Repository { name description stargazerCount primaryLanguage { name } repositoryTopics(first: 5) { nodes { topic { name } } } } } } } }\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1056,
+        -416
+      ],
+      "id": "87667c4b-6333-4c02-9a6e-f83e61eb3b13",
+      "name": "GraphQL",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "soyNbQAyhHwFhhw7",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer Your_GitHub_Key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        336,
+        352
+      ],
+      "id": "31dad430-7862-45fb-82d5-13a000e0ab7d",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2832,
+        -432
+      ],
+      "id": "a02a5577-19d1-4fc4-8588-78f23ab79a77",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "content": "                    Analyze the data",
+        "height": 224,
+        "width": 512,
+        "color": "#160A19"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        368,
+        -1136
+      ],
+      "typeVersion": 1,
+      "id": "58275d96-bcb3-4791-8820-89b52e3643d7",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "       Trigger Layer",
+        "height": 560,
+        "width": 256,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -832,
+        -1008
+      ],
+      "typeVersion": 1,
+      "id": "804e82da-3a25-40f7-a25b-5886b742b2c7",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "                Data Routing\n",
+        "height": 224,
+        "width": 432,
+        "color": "#040101"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -224,
+        -816
+      ],
+      "typeVersion": 1,
+      "id": "9d0c1746-33d0-4bbf-8a94-d54d764c82ce",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "               Github Data Fetch",
+        "height": 592,
+        "width": 448,
+        "color": "#2C352E"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        864,
+        -848
+      ],
+      "typeVersion": 1,
+      "id": "3bfbb956-0c8a-477d-9813-f5b9a4830f0e",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "                Repo Data Aggregation",
+        "height": 912,
+        "width": 480,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2736,
+        -848
+      ],
+      "typeVersion": 1,
+      "id": "a8a7dae0-bec9-43f8-8bd0-2e378e9fdbd3",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "      Validation Response",
+        "height": 256,
+        "width": 272
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2288,
+        -1280
+      ],
+      "typeVersion": 1,
+      "id": "926c789a-8b0b-4768-a221-6be8dbae23fa",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "                            Scoring & Metrics",
+        "height": 272,
+        "width": 816,
+        "color": "#2B2730"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -320,
+        256
+      ],
+      "typeVersion": 1,
+      "id": "e591639e-d944-4ca5-b2a1-f9b3c101afd7",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "                    Output Formatting",
+        "height": 288,
+        "width": 512,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        800,
+        256
+      ],
+      "typeVersion": 1,
+      "id": "09b975e0-1021-46bb-9bb5-635bb3bb6d18",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "          Delivery  Router",
+        "height": 288,
+        "width": 320,
+        "color": "#1C1212"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1680,
+        368
+      ],
+      "typeVersion": 1,
+      "id": "cbeb45a8-bde1-48ef-b0d2-285981b30a59",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "               Response Delivery",
+        "height": 624,
+        "width": 400,
+        "color": "#0B0D13"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2336,
+        224
+      ],
+      "typeVersion": 1,
+      "id": "d72ca2cd-c56c-41c3-a7e7-d4fbb7083afa",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a4b75541-f44e-4a5c-afd7-0ad06cd237a5",
+              "leftValue": "={{$json.mode}}",
+              "rightValue": "single",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        64,
+        -752
+      ],
+      "id": "ccd6ed82-7a9c-41fb-8037-b8870aaf4cf1",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Repos": {
+      "main": [
+        [
+          {
+            "node": "Scoring Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scoring Metrics": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Message": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Compare Users": {
+      "main": [
+        [
+          {
+            "node": "Split Compare Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Compare Users": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GraphQL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        []
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GraphQL": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Merge Repos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Compare Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "450d8688-d9b4-4efd-99a9-8a2969cd5b72",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "db7c6f7bacd32beea9cdb37d2980b436cbc4f382bff27f9f7983c8c6b96b7733"
+  },
+  "id": "R9pZcmWAboYuoaaH",
+  "tags": []
+}
