@@ -43,6 +43,8 @@ GitAnalyze replaces that entire workflow with a structured intelligence pipeline
 
 ---
 
+![Web Dashboard](docs/web-dashboard.png)
+
 ## What The Engine Does
 
 ```
